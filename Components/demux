@@ -1,0 +1,25 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.all;
+
+entity demux is
+    port(
+    i_c : in std_logic_vector(7 downto 0);
+    i_sel : in std_logic;
+    o_a, o_a : out std_logic_vector(7 downto 0)
+    );
+end entity demux;
+
+architecture demux of demux is
+begin
+  process (i_c, i_sel) is
+  begin
+    if(i_sel = '1') then
+      o_a <= i_c;
+    elsif(i_sel = '0')
+      o_b <= i_c;
+    else
+        o_a <= 'X';
+        o_b <= 'X';
+    end if;
+  end process;
+end architecture demux;

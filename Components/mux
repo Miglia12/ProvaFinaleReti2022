@@ -1,0 +1,29 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.all;
+use IEEE.NUMERIC_STD.ALL;
+
+entity mux1 is
+  generic (
+    DATA_WIDTH : integer := 8
+  );
+  port(
+    sel : in std_logic;
+    in0 : in std_logic_vector(DATA_WIDTH-1 downto 0);
+    in1 : in std_logic_vector(DATA_WIDTH-1 downto 0);
+    out0 : out std_logic_vector(DATA_WIDTH-1 downto 0)
+  );
+end entity mux1;
+
+architecture mux1 of mux1 is
+begin
+  process(sel, in0, in1) is
+    begin
+      if (sel = '1') then
+        out0 <= in1;
+      elsif (sel = '0') then
+        out0 <= in0;
+      else
+        out0 <= 'X'
+      end if;
+    end process;
+end architecture mux1;

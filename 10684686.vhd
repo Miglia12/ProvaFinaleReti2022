@@ -38,7 +38,7 @@ architecture Behavioral of progetto_reti_logiche is
           i_address            : in STD_LOGIC_VECTOR(15 downto 0);
           rStream_load     : in STD_LOGIC;
           rMaxAddress_load  : in STD_LOGIC;
-          rCounter_load     : in STD_LOGIC;
+          raddress_load     : in STD_LOGIC;
           sel_increaseAddress :in STD_LOGIC;
           o_address             : out STD_LOGIC_VECTOR(15 downto 0);
           o_done                  : out STD_LOGIC;
@@ -52,7 +52,7 @@ architecture Behavioral of progetto_reti_logiche is
 signal i_address : STD_LOGIC_VECTOR(15 downto 0);
 signal rMaxAddress_load  : STD_LOGIC;
 signal rStream_load :  STD_LOGIC;
-signal rCounter_load : STD_LOGIC;
+signal raddress_load : STD_LOGIC;
 signal sel_increaseAddress : STD_LOGIC;
 signal o_increaseAddress : STD_LOGIC;
 signal o_nextWord : STD_LOGIC;
@@ -68,7 +68,7 @@ begin
           i_address  => i_address,
           rStream_load => rStream_load, 
           rMaxAddress_load => rMaxAddress_load,
-          rCounter_load => rCounter_load,
+          raddress_load => raddress_load,
           sel_increaseAddress => sel_increaseAddress,
           o_data => o_data,
           o_address => o_address,
@@ -126,7 +126,7 @@ begin
     process(cur_state)
     begin
       --inizilizzazione dei segnali
-      rcounter_load <= '0';
+      raddress_load <= '0';
       rmaxAddress_load <= '0';
       o_increaseAddress <= '0';
       o_endFile <= '0';
@@ -138,19 +138,19 @@ begin
         when Reset =>  --stato di reset, azzera il contatore
           o_increaseAddress <= '0';
           rstream_load <= '0';
-          rcounter_load <= '1';
+          raddress_load <= '1';
         when Init =>  --stato iniziale, carica il numero di parole da leggere, e si prepara a leggere la prima parola
           o_en <= '1';
           o_we <= '0';
           rmaxAddress_load <= '1';
           o_increaseAddress <= '1';
-          rcounter_load <= '1';
+          raddress_load <= '1';
         when Load => --stato di Load, carica la parola corente, si prepara a leggere la successiva
           o_en <= '1';
           o_we <= '0';
           rstream_load <= '1';
           o_increaseAddress <= '1';
-          rcounter_load <= '1';
+          raddress_load <= '1';
         when S4 =>
           o_nextWord <= '1';
       end case;
@@ -173,7 +173,7 @@ entity datapath is
           i_address         : in STD_LOGIC_VECTOR(15 downto 0);
           rStream_load      : in STD_LOGIC;
           rMaxAddress_load  : in STD_LOGIC;
-          rCounter_load     : in STD_LOGIC;
+          raddress_load     : in STD_LOGIC;
           sel_increaseAddress :in STD_LOGIC;
           o_data            : out  STD_LOGIC_VECTOR(7 downto 0);
           o_address         : out STD_LOGIC_VECTOR(15 downto 0);
@@ -187,9 +187,9 @@ architecture Behavioral of datapath is
   signal data_sum : STD_LOGIC_VECTOR(15 downto 0);
   signal o_rMaxAddress : STD_LOGIC_VECTOR(15 downto 0);
   signal mux_rAddress : STD_LOGIC_VECTOR(15 downto 0);
-  signal o_rCounter : STD_LOGIC_VECTOR(15 downto 0);
+  signal o_rAddress : STD_LOGIC_VECTOR(15 downto 0);
   signal MaxAddress_sum : STD_LOGIC_VECTOR(15 downto 0);
-  signal counter_sum : STD_LOGIC_VECTOR(15 downto 0);
+  signal address_sum : STD_LOGIC_VECTOR(15 downto 0);
   signal endFile_sub : STD_LOGIC_VECTOR(15 downto 0);
 begin
 
@@ -223,23 +223,23 @@ begin
   --configurazione mux per l'aumento o il reset del contatore Address
   with sel_increaseAddress select  mux_rAddress <=   
     (others => '0') when '0',
-    counter_sum  when '1',
+    address_sum  when '1',
     (others => 'X') when others;
 
-  --configurazione registro Counter, che contiene l'indirizzo da leggere in memoria
+  --configurazione registro Address, che contiene l'indirizzo da leggere in memoria
   process(i_clk, i_rst)
   begin
     if (i_rst = '1') then
-      o_rCounter <= (others => '0');
+      o_rAddress <= (others => '0');
     elsif i_clk'event and i_clk = '1' then
-      if(rCounter_load = '1') then
-        o_rCounter <= mux_rAddress;
+      if(rAddress_load = '1') then
+        o_rAddress <= mux_rAddress;
       end if;
     end if;
   end process;
     
-    --configurazione endFIle_sub, si occupa di confrontare il MaxAddress con líndirizzo corrrente (o_rCounter) aumentato di 1 => counter_sum
-    endFile_sub <= o_rMaxAddress - counter_sum;
+    --configurazione endFIle_sub, si occupa di confrontare il MaxAddress con líndirizzo corrrente (o_raddress) aumentato di 1 => address_sum
+    endFile_sub <= o_rMaxAddress - address_sum;
     o_endFile  <=  '1' when (endFile_sub = "0000000000000000" ) else '0';
     
     

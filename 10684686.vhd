@@ -1,36 +1,18 @@
-----------------------------------------------------------------------------------
--- Company:
--- Engineer:
---
--- Create Date: 04/21/2022 06:16:53 PM
--- Design Name:
--- Module Name: progetto_reti_logiche - Behavioral
--- Project Name:
--- Target Devices:
--- Tool Versions:
--- Description:
---
--- Dependencies:
---
--- Revision:
--- Revision 0.01 - File Created
--- Additional Comments:
---
-----------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
 
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
+---- Uncomment the following library declaration if using
+---- arithmetic functions with Signed or Unsigned values
+----use IEEE.NUMERIC_STD.ALL;
 
--- Uncomment the following library declaration if instantiating
--- any Xilinx leaf cells in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
+---- Uncomment the following library declaration if instantiating
+---- any Xilinx leaf cells in this code.
+----library UNISIM;
+----use UNISIM.VComponents.all;
 
 entity progetto_reti_logiche is
     port  (
@@ -40,45 +22,61 @@ entity progetto_reti_logiche is
              i_data : in STD_LOGIC_VECTOR (7 downto 0);                      --segnale in ingresso dalla mem
              o_address : out STD_LOGIC_VECTOR (15 downto 0);                 --indirizzo lettura/scrittura mem
              o_done : out STD_LOGIC;                                         --segnale di fine elaborazioni
+             o_data : out STD_LOGIC_VECTOR (7 downto 0);                    --segnale che trasporta i dati da sctrivere in memoria
              o_en : out STD_LOGIC;                                           --segnale di enable per attivare la mem
-             o_we : out STD_LOGIC;                                           --segnale da attivare con enable per scrivere in mem
-             o_data : out STD_LOGIC_VECTOR (7 downto 0));                    --segnale che trasporta i dati da sctrivere in memoria
-    );
+             o_we : out STD_LOGIC                                      --segnale da attivare con enable per scrivere in mem
+          );
 end progetto_reti_logiche;
 
 architecture Behavioral of progetto_reti_logiche is
+
   component datapath is
     port  (
-            i_clk             : in  std_logic;
-            i_rst             : in  std_logic;
-            i_data            : in  std_logic_vector(7 downto 0);
-            i_address         : in std_logic_vector(15 downto 0);
-            o_data            : out  std_logic_vector(7 downto 0);
-            o_address         : out std_logic_vector(15 downto 0);
-            o_increaseAddress : out  std_logic;
-            o_nextWord        : out std_logic;
-            o_endFile         : out  std_logic);
+           i_clk                   : in  STD_LOGIC;
+          i_rst                     : in  STD_LOGIC;
+          i_data                  : in  STD_LOGIC_VECTOR(7 downto 0);
+          i_address            : in STD_LOGIC_VECTOR(15 downto 0);
+          rStream_load     : in STD_LOGIC;
+          rMaxAddress_load  : in STD_LOGIC;
+          rCounter_load     : in STD_LOGIC;
+          sel_increaseAddress :in STD_LOGIC;
+          o_address             : out STD_LOGIC_VECTOR(15 downto 0);
+          o_done                  : out STD_LOGIC;
+          o_data                 : out STD_LOGIC_VECTOR (7 downto 0);
+          o_increaseAddress : out  STD_LOGIC;
+          o_nextWord        : out STD_LOGIC;
+          o_endFile           : out  STD_LOGIC
+          );
     end component;
 
-signal rstream_load : std_logic;
-signal rmaxAddress_load : std_logic;
-signal rcounter_load : std_logic;
+signal i_address : STD_LOGIC_VECTOR(15 downto 0);
+signal rMaxAddress_load  : STD_LOGIC;
+signal rStream_load :  STD_LOGIC;
+signal rCounter_load : STD_LOGIC;
+signal sel_increaseAddress : STD_LOGIC;
+signal o_increaseAddress : STD_LOGIC;
+signal o_nextWord : STD_LOGIC;
+signal o_endFile : STD_LOGIC;
 type S is (S0, Reset, Init, Load, S4);
 signal cur_state, next_state : S;
 
 begin
     DATAPATH0: datapath port map(
-        i_clk => i_clk;
-        i_rst => i_rst;
-        i_data => i_data;
-        i_address => i_address;
-        o_data => o_data;
-        o_address => o_address;
-        o_increaseAddress => o_increaseAddress;
-        o_nextWord => o_nextWord;
-        o_endFile => o_endFile
-    );
-
+          i_clk  => i_clk ,
+          i_rst  => i_rst ,
+          i_data => i_data ,
+          i_address  => i_address,
+          rStream_load => rStream_load, 
+          rMaxAddress_load => rMaxAddress_load,
+          rCounter_load => rCounter_load,
+          sel_increaseAddress => sel_increaseAddress,
+          o_data => o_data,
+          o_address => o_address,
+          o_increaseAddress => o_increaseAddress,
+          o_nextWord => o_nextWord,
+          o_endFile => o_endFile 
+          );
+          
 --PROCESSO HANDLING RESET
 --permette di resettare la macchina a stati con rst = 1, altrimenti al fronte di salita passa allo stato successivo
     process(i_clk, i_rst)
@@ -115,7 +113,7 @@ begin
             next_state <= S0;
           end if;
         when S4 =>
-          if(o_nextWord = '1')
+          if(o_nextWord = '1') then
             next_state <= Load;
           else
             next_state <= S4;
@@ -165,22 +163,23 @@ end Behavioral;
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
+use IEEE.numeric_std_unsigned.all;
 
 entity datapath is
   port  (
-          i_clk             : in  std_logic;
-          i_rst             : in  std_logic;
-          i_data            : in  std_logic_vector(7 downto 0);
-          i_address         : in std_logic_vector(15 downto 0);
-          rStream_load      : in std_logic;
-          rMaxAddress_load  : in std_logic;
-          rCounter_load     : in std_logic;
-          sel_increaseAddress :in std_logic;
-          o_data            : out  std_logic_vector(7 downto 0);
-          o_address         : out std_logic_vector(15 downto 0);
-          o_increaseAddress : out  std_logic;
-          o_nextWord        : out std_logic;
-          o_endFile         : out  std_logic);
+          i_clk             : in  STD_LOGIC;
+          i_rst             : in  STD_LOGIC;
+          i_data            : in  STD_LOGIC_VECTOR(7 downto 0);
+          i_address         : in STD_LOGIC_VECTOR(15 downto 0);
+          rStream_load      : in STD_LOGIC;
+          rMaxAddress_load  : in STD_LOGIC;
+          rCounter_load     : in STD_LOGIC;
+          sel_increaseAddress :in STD_LOGIC;
+          o_data            : out  STD_LOGIC_VECTOR(7 downto 0);
+          o_address         : out STD_LOGIC_VECTOR(15 downto 0);
+          o_increaseAddress : out  STD_LOGIC;
+          o_nextWord        : out STD_LOGIC;
+          o_endFile         : out  STD_LOGIC);
 end datapath;
 
 architecture Behavioral of datapath is
@@ -191,7 +190,7 @@ architecture Behavioral of datapath is
   signal o_rCounter : STD_LOGIC_VECTOR(15 downto 0);
   signal MaxAddress_sum : STD_LOGIC_VECTOR(15 downto 0);
   signal counter_sum : STD_LOGIC_VECTOR(15 downto 0);
-  signal sub : STD_LOGIC_VECTOR(15 downto 0);
+  signal endFile_sub : STD_LOGIC_VECTOR(15 downto 0);
 begin
 
 --configurazione del registro Stream
@@ -206,14 +205,14 @@ begin
     end if;
   end process;
 
-  --aumenta di 1 il MaxAddress
-  MaxAddress_sum <= ("00000000" & i_data) + 1;
+  --configurazione MaxAddressSum, aumenta di 1 il MaxAddress
+  MaxAddress_sum <= ("00000000" & i_data)  + 1;
 
   --configurazione del registro MaxAddress
   process(i_clk, i_rst)
   begin
     if (i_rst = '1') then
-      o_rMaxAddress <= (others => '0')
+      o_rMaxAddress <= (others => '0');
     elsif i_clk'event and i_clk = '1' then
       if(rMaxAddress_load = '1') then
         o_rMaxAddress <= MaxAddress_sum;
@@ -222,19 +221,27 @@ begin
   end process;
 
   --configurazione mux per l'aumento o il reset del contatore Address
-  with sel_increaseAddress select
-    mux_rAddress <= (others => '0') when '0';
-                    counter_sum  when '1';
-                    
+  with sel_increaseAddress select  mux_rAddress <=   
+    (others => '0') when '0',
+    counter_sum  when '1',
+    (others => 'X') when others;
 
   --configurazione registro Counter, che contiene l'indirizzo da leggere in memoria
   process(i_clk, i_rst)
   begin
     if (i_rst = '1') then
-      o_rCounter <= (others => '0')
+      o_rCounter <= (others => '0');
     elsif i_clk'event and i_clk = '1' then
       if(rCounter_load = '1') then
         o_rCounter <= mux_rAddress;
       end if;
     end if;
   end process;
+    
+    --configurazione endFIle_sub, si occupa di confrontare il MaxAddress con líndirizzo corrrente (o_rCounter) aumentato di 1 => counter_sum
+    endFile_sub <= o_rMaxAddress - counter_sum;
+    o_endFile  <=  '1' when (endFile_sub = "0000000000000000" ) else '0';
+    
+    
+    
+end Behavioral;

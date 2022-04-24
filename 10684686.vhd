@@ -38,7 +38,7 @@ architecture Behavioral of progetto_reti_logiche is
           i_address            : in STD_LOGIC_VECTOR(15 downto 0);
           rStream_load     : in STD_LOGIC;
           rMaxAddress_load  : in STD_LOGIC;
-          raddress_load     : in STD_LOGIC;
+          rAddress_load     : in STD_LOGIC;
           sel_increaseAddress :in STD_LOGIC;
           o_address             : out STD_LOGIC_VECTOR(15 downto 0);
           o_done                  : out STD_LOGIC;
@@ -52,7 +52,7 @@ architecture Behavioral of progetto_reti_logiche is
 signal i_address : STD_LOGIC_VECTOR(15 downto 0);
 signal rMaxAddress_load  : STD_LOGIC;
 signal rStream_load :  STD_LOGIC;
-signal raddress_load : STD_LOGIC;
+signal rAddress_load : STD_LOGIC;
 signal sel_increaseAddress : STD_LOGIC;
 signal o_increaseAddress : STD_LOGIC;
 signal o_nextWord : STD_LOGIC;
@@ -68,7 +68,7 @@ begin
           i_address  => i_address,
           rStream_load => rStream_load, 
           rMaxAddress_load => rMaxAddress_load,
-          raddress_load => raddress_load,
+          rAddress_load => rAddress_load,
           sel_increaseAddress => sel_increaseAddress,
           o_data => o_data,
           o_address => o_address,
@@ -120,15 +120,16 @@ begin
           end if;
       end case;
     end process;
+    
 
 --PROCESSO USCITE STATI
 --funzione di uscita della macchina a stati, dipende solo dallo stato corrente
     process(cur_state)
     begin
       --inizilizzazione dei segnali
-      raddress_load <= '0';
+      rAddress_load <= '0';
       rmaxAddress_load <= '0';
-      o_increaseAddress <= '0';
+      sel_increaseAddress <= '0';
       o_endFile <= '0';
       o_we <= '0';
       o_en <= '0';
@@ -136,21 +137,21 @@ begin
       case cur_state is
         when s0 =>  --stato di IDLE
         when Reset =>  --stato di reset, azzera il contatore
-          o_increaseAddress <= '0';
+          sel_increaseAddress <= '0';
           rstream_load <= '0';
-          raddress_load <= '1';
+          rAddress_load <= '1';
         when Init =>  --stato iniziale, carica il numero di parole da leggere, e si prepara a leggere la prima parola
           o_en <= '1';
           o_we <= '0';
           rmaxAddress_load <= '1';
-          o_increaseAddress <= '1';
-          raddress_load <= '1';
-        when Load => --stato di Load, carica la parola corente, si prepara a leggere la successiva
+          sel_increaseAddress <= '1';
+          rAddress_load <= '1';
+        when Load => --stato di Load, carica la parola corrente, si prepara a leggere la successiva
           o_en <= '1';
           o_we <= '0';
           rstream_load <= '1';
-          o_increaseAddress <= '1';
-          raddress_load <= '1';
+          sel_increaseAddress <= '1';
+          rAddress_load <= '1';
         when S4 =>
           o_nextWord <= '1';
       end case;
@@ -173,7 +174,7 @@ entity datapath is
           i_address         : in STD_LOGIC_VECTOR(15 downto 0);
           rStream_load      : in STD_LOGIC;
           rMaxAddress_load  : in STD_LOGIC;
-          raddress_load     : in STD_LOGIC;
+          rAddress_load     : in STD_LOGIC;
           sel_increaseAddress :in STD_LOGIC;
           o_data            : out  STD_LOGIC_VECTOR(7 downto 0);
           o_address         : out STD_LOGIC_VECTOR(15 downto 0);

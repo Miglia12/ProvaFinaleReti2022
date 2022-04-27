@@ -1,9 +1,9 @@
 ---------------------------------------------------------------------------------
 
-
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
+use ieee.numeric_std_unsigned.all;
 
 ---- Uncomment the following library declaration if using
 ---- arithmetic functions with Signed or Unsigned values
@@ -66,7 +66,7 @@ signal sel_DataOutput : STD_LOGIC;
 signal startConvolution : STD_LOGIC;
 signal o_endWord : STD_LOGIC;
 signal o_endFile : STD_LOGIC;
-type S is (S0, Reset, InitLoad, Load, InitConvolution, Convolute, SaveP1, SaveP2, CloseMem);
+type S is (S0, Reset, InitLoad, Load, InitConvolution, Convolute, ConvoluteCheck, SaveP1, SaveP2, CloseMem);
 signal cur_state, next_state : S;
 
 begin
@@ -129,10 +129,12 @@ begin
         when InitConvolution => --stato per iniziare la convoluzione, passa subito allo stato successivo
           next_state <= Convolute;
         when Convolute => --stato per eseguire la convoluzione di una data parola
-            if (o_endWord = '0') then
-                next_state <= Convolute;
-            else 
+          next_state <= ConvoluteCheck;
+         when ConvoluteCheck =>
+         if (o_endWord = '1') then
                 next_state <= SaveP1;
+            else 
+                next_state <= Convolute;
             end if; 
          when SaveP1 => --stato per salvare in memoria il risultato dello Convolute 
             next_state <= SaveP2 ;
@@ -158,8 +160,6 @@ begin
       sel_decreaseCounter <= '0';
       sel_increseMemAddress <= '0';
       startConvolution <= '0';
-      o_endWord <= '0';
-      o_endFile <= '0';
       o_we <= '0';
       o_en <= '0';
       --gestione del comportamento per ogni stato
@@ -187,13 +187,14 @@ begin
         when Load => --stato di Load, carica la parola corrente, si prepara a leggere la successiva
           o_en <= '1';
           o_we <= '0';
-          o_endWord <= '0';
           rstream_load <= '1';
           sel_increaseAddress <= '1';
           rAddress_load <= '1';
           startConvolution  <= '0';
           rMemAddress_load <= '0';
           sel_AddressOutput <= '0';
+          sel_decreaseCounter <= '0';
+          rCounter_load <= '1';
         when InitConvolution =>
           o_en <= '0';
           o_we <= '0';
@@ -203,8 +204,10 @@ begin
           rCounter_load <= '1';
           startConvolution  <= '1';
         when Convolute => 
-          sel_decreaseCounter <= '1';     
-          rCounter_load <= '1';
+          rCounter_load <= '0';
+        when ConvoluteCheck =>
+           sel_decreaseCounter <= '1';
+           rCounter_load <= '1';         
         when SaveP1 => 
            o_en <= '1';
            o_we <= '1'; 
@@ -344,13 +347,14 @@ begin
     
   --configurazione rCounter_sub, si occpura di diminuire il counter e notificare quando questo raggiunge il valore 0
   rCounter_sub <= o_rCounter - 1;
-  o_endWord <= '1' when (rCounter_sub = 0) else '0';
+  o_endWord <= '1' when (rCounter_sub  = 0) else '0';
+ 
   
   --configurazione mux per il decremento o il reset del contatore Counter
   with sel_decreaseCounter select mux_rCounter <=   
-    7 when '0',
+    8 when '0',
     rCounter_sub   when '1',
-    8 when others;
+    -1 when others;
     
   --processo convolutore  
   process(i_clk, i_rst)
@@ -359,25 +363,20 @@ begin
       P1 <= (others => '0');
       P2 <= (others => '0');
     elsif i_clk'event and i_clk = '1' then
-        if (startConvolution = '1') then
+--        if (startConvolution = '1') then
              case o_rCounter  is
                 when 7 =>
                     P1 (o_rCounter ) <= (o_rStream(o_rCounter) xor '0');
-                    P2 (o_rCounter ) <= (o_rStream(o_rCounter) xor '0' xor '0');
+                    P2 (o_rCounter ) <= (o_rStream(o_rCounter) xor '0');
                 when 6 => 
                     P1 (o_rCounter ) <= (o_rStream(o_rCounter) xor '0');
                     P2 (o_rCounter ) <= (o_rStream(o_rCounter) xor o_rStream(o_rCounter + 1) xor '0');
                 when 5 | 4 | 3 | 2 | 1 | 0 =>
                     P1 (o_rCounter ) <= (o_rStream(o_rCounter) xor o_rStream(o_rCounter + 2));
                     P2 (o_rCounter ) <= (o_rStream(o_rCounter) xor o_rStream(o_rCounter + 1) xor o_rStream(o_rCounter + 2));
---                    if (o_rCounter = 0) then
---                        o_endWord <= '1';
---                    end if;
                  when others => 
-                    P1 <= (others => 'X');
-                    P2 <= (others => 'X');
               end case;
-         end if;
+--         end if;
     end if;
   end process;
  

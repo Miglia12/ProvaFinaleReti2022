@@ -45,6 +45,7 @@ architecture Behavioral of progetto_reti_logiche is
           sel_increseMemAddress : in STD_LOGIC;
           sel_AddressOutput : in STD_LOGIC;
           sel_DataOutput : in STD_LOGIC;
+          start_convolution : in STD_LOGIC;
           o_data            : out  STD_LOGIC_VECTOR(7 downto 0);
           o_address         : out STD_LOGIC_VECTOR(15 downto 0);
           o_endWord      : out STD_LOGIC;
@@ -62,6 +63,7 @@ signal sel_decreaseCounter : STD_LOGIC;
 signal sel_increseMemAddress : STD_LOGIC;
 signal sel_AddressOutput : STD_LOGIC;
 signal sel_DataOutput : STD_LOGIC;
+signal start_convolution : STD_LOGIC;
 signal o_endWord : STD_LOGIC;
 signal o_endFile : STD_LOGIC;
 type S is (S0, Reset, InitLoad, WaitMem1, Load, WaitMem2, InitConvolution, Convolute, ConvoluteCheck, SaveP1, SaveP2, CloseMem);
@@ -82,6 +84,7 @@ begin
           sel_increseMemAddress => sel_increseMemAddress ,
           sel_AddressOutput => sel_AddressOutput , 
           sel_DataOutput => sel_DataOutput ,
+          start_convolution => start_convolution ,
           o_data            => o_data ,
           o_address        => o_address ,
           o_endWord      => o_endWord ,
@@ -172,13 +175,14 @@ begin
           rCounter_load <= '1';
           sel_increseMemAddress <= '0';
           rMemAddress_load <= '1';
+          start_convolution <= '0';
         when InitLoad =>  --stato iniziale, carica il numero di parole da leggere, e si prepara a leggere la prima parola
           o_en <= '1';
           o_we <= '0';
           sel_increaseAddress <= '1';
           sel_AddressOutput <= '0';
           rCounter_load <= '0';
-          rAddress_load <= '0';
+          rAddress_load <= '1';
           rMemAddress_load <= '0';
         when WaitMem1 => --aspetta che la parola sia effettivamente caricata
           rmaxAddress_load <= '1';
@@ -191,6 +195,7 @@ begin
           sel_AddressOutput <= '0';
           sel_decreaseCounter <= '0';
           rCounter_load <= '1';
+          start_convolution <= '0';
         when WaitMem2 => --aspetta che la parola sia effettivamente caricata
           rstream_load <= '1';
         when InitConvolution => --setta i segnali per iniziare la convoluzione
@@ -200,6 +205,7 @@ begin
           rAddress_load <= '0';
           sel_decreaseCounter <= '1';
           rCounter_load <= '1';
+          start_convolution <= '1';
         when Convolute => 
           rCounter_load <= '0';
         when ConvoluteCheck =>
@@ -214,6 +220,7 @@ begin
            rMemAddress_load <= '1';
            sel_AddressOutput  <= '1';
            sel_DataOutput <= '0';
+           start_convolution <= '0';
          when SaveP2 =>
            o_en <= '1';
            o_we <= '1'; 
@@ -252,6 +259,7 @@ entity datapath is
           sel_increseMemAddress : in STD_LOGIC;
           sel_AddressOutput : in STD_LOGIC;
           sel_DataOutput : in STD_LOGIC;
+          start_convolution : in STD_LOGIC;
           o_data            : out  STD_LOGIC_VECTOR(7 downto 0);
           o_address         : out STD_LOGIC_VECTOR(15 downto 0);
           o_endWord      : out STD_LOGIC;
@@ -332,7 +340,7 @@ begin
   end process;
     
   --configurazione endFIle_sub, si occupa di confrontare il MaxAddress con líndirizzo corrrente (o_raddress) aumentato di 1 => address_sum
-  endFile_sub <= std_logic_vector(unsigned(MaxAddress_sum) - unsigned(address_sum));
+  endFile_sub <= std_logic_vector(unsigned(MaxAddress_sum) - unsigned(o_rAddress ));
   o_endFile  <=  '1' when (endFile_sub = "0000000000000000" ) else '0';
     
   --configurazione registro Counter, che contiene il numero di bit letti
@@ -365,7 +373,11 @@ begin
       P1 <= (others => '0');
       P2 <= (others => '0');
     elsif i_clk'event and i_clk = '1' then
+        if (start_convolution = '1') then
              case o_rCounter  is
+                when 8 => 
+                    P1 <= (others => '0');
+                    P2 <= (others => '0');
                 when 7 =>
                     P1 (o_rCounter ) <= (o_rStream(o_rCounter) xor '0');
                     P2 (o_rCounter ) <= (o_rStream(o_rCounter) xor '0');
@@ -375,9 +387,10 @@ begin
                 when 5 | 4 | 3 | 2 | 1 | 0 =>
                     P1 (o_rCounter ) <= (o_rStream(o_rCounter) xor o_rStream(o_rCounter + 2));
                     P2 (o_rCounter ) <= (o_rStream(o_rCounter) xor o_rStream(o_rCounter + 1) xor o_rStream(o_rCounter + 2));
-                 when others => 
+                 when others =>
               end case;
          end if;
+     end if;
   end process;
  
   --configurazione registro memAddress, che contiene l'indirizzo in cui scrivere in memoria e si occupa di fare output dei dati

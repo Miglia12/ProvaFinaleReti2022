@@ -14,7 +14,7 @@ use IEEE.NUMERIC_STD.ALL;
 ----library UNISIM;
 ----use UNISIM.VComponents.all;
 
-entity progetto_reti_logiche is
+entity project_reti_logiche is
     port  (
              i_clk : in STD_LOGIC;                                           --segnale clock
              i_rst : in STD_LOGIC;                                           --segnale reset
@@ -26,9 +26,9 @@ entity progetto_reti_logiche is
              o_en : out STD_LOGIC;                                           --segnale di enable per attivare la mem
              o_we : out STD_LOGIC                                      --segnale da attivare con enable per scrivere in mem
           );
-end progetto_reti_logiche;
+end project_reti_logiche;
 
-architecture Behavioral of progetto_reti_logiche is
+architecture Behavioral of project_reti_logiche is
 
   component datapath is
     port  (

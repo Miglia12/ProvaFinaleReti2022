@@ -3,7 +3,7 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
-use ieee.numeric_std_unsigned.all;
+
 
 ---- Uncomment the following library declaration if using
 ---- arithmetic functions with Signed or Unsigned values
@@ -66,7 +66,7 @@ signal sel_DataOutput : STD_LOGIC;
 signal start_convolution : STD_LOGIC;
 signal o_endWord : STD_LOGIC;
 signal o_endFile : STD_LOGIC;
-type S is (S0, Reset, InitLoad, WaitMem1, Load, WaitMem2, InitConvolution, Convolute, ConvoluteCheck, SaveP1, SaveP2, CloseMem);
+type S is (S0, Reset, InitLoad, WaitMem1, Load, WaitMem2, InitConvolution, Convolute, SaveP1, SaveP2, CloseMem);
 signal cur_state, next_state : S;
 
 begin
@@ -104,7 +104,7 @@ begin
 
 --PROCESSO PASSAGGIO STATI
 --gestisce il passaggio tra stati tramite i parametri
-    process(cur_state, i_start, o_endFile)
+    process(cur_state, i_start, o_endFile, o_endWord)
     begin
       next_state <= cur_state; --si assicura di rimanere nel combinatorio
       case cur_state is --condizioni di cambiamento tra stati
@@ -129,8 +129,6 @@ begin
         when InitConvolution => --stato per iniziare la convoluzione, passa subito allo stato successivo
           next_state <= Convolute;
         when Convolute => --stato per eseguire la convoluzione di una data parola
-          next_state <= ConvoluteCheck;
-         when ConvoluteCheck =>
          if (o_endWord = '1') then
                 next_state <= SaveP1;
             else 
@@ -159,6 +157,10 @@ begin
       sel_increaseAddress <= '0';
       sel_decreaseCounter <= '0';
       sel_increseMemAddress <= '0';
+      sel_AddressOutput <= '0';
+      sel_DataOutput <= '0';
+      start_convolution <= '0';
+      o_done <= '0';
       o_we <= '0';
       o_en <= '0';
       --gestione del comportamento per ogni stato
@@ -207,10 +209,9 @@ begin
           rCounter_load <= '1';
           start_convolution <= '1';
         when Convolute => 
-          rCounter_load <= '0';
-        when ConvoluteCheck =>
            sel_decreaseCounter <= '1';
-           rCounter_load <= '1';         
+           rCounter_load <= '1';
+           start_convolution <= '1';
         when SaveP1 => 
            o_en <= '1';
            o_we <= '1'; 
@@ -241,7 +242,6 @@ end Behavioral;
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
-use ieee.numeric_std_unsigned.all;
 use IEEE.NUMERIC_STD.ALL;
 
 entity datapath is
@@ -357,14 +357,14 @@ begin
     
   --configurazione rCounter_sub, si occpura di diminuire il counter e notificare quando questo raggiunge il valore 0
   rCounter_sub <= o_rCounter - 1;
-  o_endWord <= '1' when (rCounter_sub  = 0) else '0';
+  o_endWord <= '1' when (rCounter_sub  = -1) else '0';
  
   
   --configurazione mux per il decremento o il reset del contatore Counter
   with sel_decreaseCounter select mux_rCounter <=   
     8 when '0',
     rCounter_sub   when '1',
-    -1 when others;
+    10 when others;
     
   --processo convolutore  
   process(i_clk, i_rst)

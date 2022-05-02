@@ -40,11 +40,13 @@ architecture Behavioral of project_reti_logiche is
           rAddress_load     : in STD_LOGIC;
           rCounter_load     : in STD_LOGIC;
           rMemAddress_load      : in STD_LOGIC;
+          rAddOn_load           : in STD_LOGIC;
           sel_increaseAddress : in STD_LOGIC;
           sel_decreaseCounter : in STD_LOGIC;
           sel_increseMemAddress : in STD_LOGIC;
           sel_AddressOutput : in STD_LOGIC;
           sel_DataOutput : in STD_LOGIC;
+          sel_saveLastBit : in STD_LOGIC;
           start_convolution : in STD_LOGIC;
           o_data            : out  STD_LOGIC_VECTOR(7 downto 0);
           o_address         : out STD_LOGIC_VECTOR(15 downto 0);
@@ -58,11 +60,13 @@ signal rStream_load :  STD_LOGIC;
 signal rAddress_load : STD_LOGIC;
 signal rCounter_load :  STD_LOGIC;
 signal rMemAddress_load :  STD_LOGIC;
+signal rAddOn_load           : STD_LOGIC;
 signal sel_increaseAddress : STD_LOGIC;
 signal sel_decreaseCounter : STD_LOGIC;
 signal sel_increseMemAddress : STD_LOGIC;
 signal sel_AddressOutput : STD_LOGIC;
 signal sel_DataOutput : STD_LOGIC;
+signal sel_saveLastBit : STD_LOGIC;
 signal start_convolution : STD_LOGIC;
 signal o_endWord : STD_LOGIC;
 signal o_endFile : STD_LOGIC;
@@ -79,11 +83,13 @@ begin
           rAddress_load            => rAddress_load ,
           rCounter_load            => rCounter_load ,
           rMemAddress_load      => rMemAddress_load ,
+          rAddOn_load              => rAddOn_load ,
           sel_increaseAddress   => sel_increaseAddress ,
           sel_decreaseCounter   => sel_decreaseCounter ,
           sel_increseMemAddress => sel_increseMemAddress ,
           sel_AddressOutput => sel_AddressOutput , 
           sel_DataOutput => sel_DataOutput ,
+          sel_saveLastBit => sel_saveLastBit , 
           start_convolution => start_convolution ,
           o_data            => o_data ,
           o_address        => o_address ,
@@ -154,11 +160,13 @@ begin
       rMaxAddress_load <= '0';
       rCounter_load <= '0';
       rMemAddress_load <= '0';
+      rAddOn_load <= '0';
       sel_increaseAddress <= '0';
       sel_decreaseCounter <= '0';
       sel_increseMemAddress <= '0';
       sel_AddressOutput <= '0';
       sel_DataOutput <= '0';
+      sel_saveLastBit <= '0';
       start_convolution <= '0';
       o_done <= '0';
       o_we <= '0';
@@ -177,6 +185,8 @@ begin
           rCounter_load <= '1';
           sel_increseMemAddress <= '0';
           rMemAddress_load <= '1';
+          sel_saveLastBit <= '0';
+          rAddOn_load <= '1';
           start_convolution <= '0';
         when InitLoad =>  --stato iniziale, carica il numero di parole da leggere, e si prepara a leggere la prima parola
           o_en <= '1';
@@ -197,6 +207,7 @@ begin
           sel_AddressOutput <= '0';
           sel_decreaseCounter <= '0';
           rCounter_load <= '1';
+          rAddOn_load <= '0';
           start_convolution <= '0';
         when WaitMem2 => --aspetta che la parola sia effettivamente caricata
           rstream_load <= '1';
@@ -207,10 +218,11 @@ begin
           rAddress_load <= '0';
           sel_decreaseCounter <= '1';
           rCounter_load <= '1';
-          start_convolution <= '1';
         when Convolute => 
            sel_decreaseCounter <= '1';
            rCounter_load <= '1';
+           sel_saveLastBit <= '1';
+           rAddOn_load <= '1';
            start_convolution <= '1';
         when SaveP1 => 
            o_en <= '1';
@@ -254,11 +266,13 @@ entity datapath is
           rAddress_load     : in STD_LOGIC;
           rCounter_load     : in STD_LOGIC;
           rMemAddress_load      : in STD_LOGIC;
+          rAddOn_load           : in STD_LOGIC;
           sel_increaseAddress : in STD_LOGIC;
           sel_decreaseCounter : in STD_LOGIC;
           sel_increseMemAddress : in STD_LOGIC;
           sel_AddressOutput : in STD_LOGIC;
           sel_DataOutput : in STD_LOGIC;
+          sel_saveLastBit : in STD_LOGIC;
           start_convolution : in STD_LOGIC;
           o_data            : out  STD_LOGIC_VECTOR(7 downto 0);
           o_address         : out STD_LOGIC_VECTOR(15 downto 0);
@@ -268,6 +282,8 @@ end datapath;
 
 architecture Behavioral of datapath is
   signal o_rStream : STD_LOGIC_VECTOR(7 downto 0);
+  signal o_rAddOn : STD_LOGIC_VECTOR(1 downto 0);
+  signal ConvInput : STD_LOGIC_VECTOR(9 downto 0);
   signal data_sum : STD_LOGIC_VECTOR(15 downto 0);
   signal o_rMaxAddress : STD_LOGIC_VECTOR(7 downto 0);
   signal mux_rAddress : STD_LOGIC_VECTOR(15 downto 0);
@@ -279,6 +295,7 @@ architecture Behavioral of datapath is
   signal P2 : STD_LOGIC_VECTOR(7 downto 0);
   signal o_rMemAddress : STD_LOGIC_VECTOR(15 downto 0);
   signal mux_rMemAddress : STD_LOGIC_VECTOR(15 downto 0);
+  signal mux_rAddOn : STD_LOGIC_VECTOR(1 downto 0);
   signal MemAddress_sum : STD_LOGIC_VECTOR(15 downto 0);
   signal o_datatemp : STD_LOGIC_VECTOR(15 downto 0);
   signal o_rCounter : integer ; 
@@ -295,16 +312,36 @@ begin
       o_rStream <= (others => '0');
     elsif i_clk'event and i_clk = '1' then
       if(rStream_load = '1') then
-        o_rStream <= i_data;
+        o_rStream <= ( i_data);
       end if;
     end if;
   end process;
-
+  
+  --configurazione del registro AddOn
+  process(i_clk, i_rst)
+  begin
+    if (i_rst = '1') then
+      o_rAddOn  <= (others => '0');
+    elsif i_clk'event and i_clk = '1' then
+      if(rAddOn_load = '1' and o_rCounter = 6) then
+        o_rAddOn  <=  mux_rAddOn;
+      end if;
+    end if;
+  end process;
+  
+   --configurazione mux per il registro AddOn
+  with sel_saveLastBit select  mux_rAddOn <=   
+    (others => '0') when '0',
+    o_rStream(1 downto 0)   when '1',
+    (others => '0') when others;
+    
+--configurazione ConvInput
+    ConvInput  <= (o_rAddOn & o_rStream);
+    
   --configurazione MaxAddressSum, aumenta di 1 il MaxAddress
     tempData <= (to_integer(unsigned(o_rMaxAddress)) + 1);
     MaxAddress_sum <= std_logic_vector(to_unsigned(tempData, MaxAddress_sum 'length));
 
-    
   --configurazione del registro MaxAddress
   process(i_clk, i_rst)
   begin
@@ -339,7 +376,7 @@ begin
     end if;
   end process;
     
-  --configurazione endFIle_sub, si occupa di confrontare il MaxAddress con líndirizzo corrrente (o_raddress) aumentato di 1 => address_sum
+  --configurazione endFIle_sub, si occupa di confrontare il MaxAddress con l?ndirizzo corrrente (o_raddress) aumentato di 1 => address_sum
   endFile_sub <= std_logic_vector(unsigned(MaxAddress_sum) - unsigned(o_rAddress ));
   o_endFile  <=  '1' when (endFile_sub = "0000000000000000" ) else '0';
     
@@ -369,26 +406,38 @@ begin
   --processo convolutore  
   process(i_clk, i_rst)
   begin
-    if (i_rst = '1') then
+    if (i_rst = '1' or o_rCounter = 8) then
       P1 <= (others => '0');
       P2 <= (others => '0');
     elsif i_clk'event and i_clk = '1' then
         if (start_convolution = '1') then
-             case o_rCounter  is
-                when 8 => 
-                    P1 <= (others => '0');
-                    P2 <= (others => '0');
+            case (o_rCounter) is
                 when 7 =>
-                    P1 (o_rCounter ) <= (o_rStream(o_rCounter) xor '0');
-                    P2 (o_rCounter ) <= (o_rStream(o_rCounter) xor '0');
-                when 6 => 
-                    P1 (o_rCounter ) <= (o_rStream(o_rCounter) xor '0');
-                    P2 (o_rCounter ) <= (o_rStream(o_rCounter) xor o_rStream(o_rCounter + 1) xor '0');
-                when 5 | 4 | 3 | 2 | 1 | 0 =>
-                    P1 (o_rCounter ) <= (o_rStream(o_rCounter) xor o_rStream(o_rCounter + 2));
-                    P2 (o_rCounter ) <= (o_rStream(o_rCounter) xor o_rStream(o_rCounter + 1) xor o_rStream(o_rCounter + 2));
-                 when others =>
-              end case;
+                    P1 (o_rCounter ) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 2));
+                    P1 (o_rCounter -1) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 1) xor ConvInput(o_rCounter + 2));
+                when 6 =>
+                    P1 (o_rCounter - 1) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 2));
+                    P1 (o_rCounter - 2) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 1) xor ConvInput(o_rCounter + 2));
+                when 5 =>
+                    P1 (o_rCounter -2 ) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 2));
+                    P1 (o_rCounter -3 ) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 1) xor ConvInput(o_rCounter + 2));
+                when 4 =>
+                    P1 (o_rCounter - 3) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 2));
+                    P1 (o_rCounter - 4) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 1) xor ConvInput(o_rCounter + 2));
+                when 3 =>
+                    P2 (o_rCounter + 4 ) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 2));
+                    P2 (o_rCounter + 3 ) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 1) xor ConvInput(o_rCounter + 2));
+                when 2 =>
+                    P2 (o_rCounter + 3) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 2));
+                    P2 (o_rCounter + 2) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 1) xor ConvInput(o_rCounter + 2));
+                when 1 =>
+                    P2 (o_rCounter + 2 ) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 2));
+                    P2 (o_rCounter + 1 ) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 1) xor ConvInput(o_rCounter + 2));
+                when 0 =>
+                    P2 (o_rCounter + 1) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 2));
+                    P2 (o_rCounter + 0) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 1) xor ConvInput(o_rCounter + 2));
+                when others =>
+            end case;
          end if;
      end if;
   end process;

@@ -40,7 +40,8 @@ architecture Behavioral of project_reti_logiche is
           rAddress_load     : in STD_LOGIC;
           rCounter_load     : in STD_LOGIC;
           rMemAddress_load      : in STD_LOGIC;
-          rAddOn_load           : in STD_LOGIC;
+          rAddOn_load1           : in STD_LOGIC;
+          rAddOn_load                : in STD_LOGIC;
           sel_increaseAddress : in STD_LOGIC;
           sel_decreaseCounter : in STD_LOGIC;
           sel_increseMemAddress : in STD_LOGIC;
@@ -60,7 +61,8 @@ signal rStream_load :  STD_LOGIC;
 signal rAddress_load : STD_LOGIC;
 signal rCounter_load :  STD_LOGIC;
 signal rMemAddress_load :  STD_LOGIC;
-signal rAddOn_load           : STD_LOGIC;
+signal rAddOn_load1           : STD_LOGIC;
+signal rAddOn_load                :  STD_LOGIC;
 signal sel_increaseAddress : STD_LOGIC;
 signal sel_decreaseCounter : STD_LOGIC;
 signal sel_increseMemAddress : STD_LOGIC;
@@ -83,7 +85,8 @@ begin
           rAddress_load            => rAddress_load ,
           rCounter_load            => rCounter_load ,
           rMemAddress_load      => rMemAddress_load ,
-          rAddOn_load              => rAddOn_load ,
+          rAddOn_load1              => rAddOn_load1 ,
+          rAddOn_load              =>   rAddOn_load,
           sel_increaseAddress   => sel_increaseAddress ,
           sel_decreaseCounter   => sel_decreaseCounter ,
           sel_increseMemAddress => sel_increseMemAddress ,
@@ -160,6 +163,7 @@ begin
       rMaxAddress_load <= '0';
       rCounter_load <= '0';
       rMemAddress_load <= '0';
+      rAddOn_load1 <= '0';
       rAddOn_load <= '0';
       sel_increaseAddress <= '0';
       sel_decreaseCounter <= '0';
@@ -207,7 +211,7 @@ begin
           sel_AddressOutput <= '0';
           sel_decreaseCounter <= '0';
           rCounter_load <= '1';
-          rAddOn_load <= '0';
+          rAddOn_load1 <= '0';
           start_convolution <= '0';
         when WaitMem2 => --aspetta che la parola sia effettivamente caricata
           rstream_load <= '1';
@@ -222,7 +226,7 @@ begin
            sel_decreaseCounter <= '1';
            rCounter_load <= '1';
            sel_saveLastBit <= '1';
-           rAddOn_load <= '1';
+           rAddOn_load1 <= '1';
            start_convolution <= '1';
         when SaveP1 => 
            o_en <= '1';
@@ -266,7 +270,8 @@ entity datapath is
           rAddress_load     : in STD_LOGIC;
           rCounter_load     : in STD_LOGIC;
           rMemAddress_load      : in STD_LOGIC;
-          rAddOn_load           : in STD_LOGIC;
+          rAddOn_load1           : in STD_LOGIC;
+          rAddOn_load               : in STD_LOGIC;
           sel_increaseAddress : in STD_LOGIC;
           sel_decreaseCounter : in STD_LOGIC;
           sel_increseMemAddress : in STD_LOGIC;
@@ -298,6 +303,7 @@ architecture Behavioral of datapath is
   signal mux_rAddOn : STD_LOGIC_VECTOR(1 downto 0);
   signal MemAddress_sum : STD_LOGIC_VECTOR(15 downto 0);
   signal o_datatemp : STD_LOGIC_VECTOR(15 downto 0);
+  signal rAddOn_load2 : STD_LOGIC;
   signal o_rCounter : integer ; 
   signal mux_rCounter : integer ;
   signal rCounter_sub : integer ;
@@ -323,12 +329,19 @@ begin
     if (i_rst = '1') then
       o_rAddOn  <= (others => '0');
     elsif i_clk'event and i_clk = '1' then
-      if(rAddOn_load = '1' and o_rCounter = 6) then
+      if(rAddOn_load1 = '1' and rAddOn_load2 = '1') then
+        o_rAddOn  <=  mux_rAddOn;
+      end if;
+      if(rAddOn_load = '1') then
         o_rAddOn  <=  mux_rAddOn;
       end if;
     end if;
   end process;
   
+  with o_rCounter select  rAddOn_load2 <=   
+    '1' when 6,
+    '0' when others;
+    
    --configurazione mux per il registro AddOn
   with sel_saveLastBit select  mux_rAddOn <=   
     (others => '0') when '0',

@@ -42,6 +42,8 @@ architecture Behavioral of project_reti_logiche is
           rMemAddress_load      : in STD_LOGIC;
           rAddOn_load1           : in STD_LOGIC;
           rAddOn_load                : in STD_LOGIC;
+          rP1_load                     : STD_LOGIC;
+          rP2_load                     : STD_LOGIC;
           sel_increaseAddress : in STD_LOGIC;
           sel_decreaseCounter : in STD_LOGIC;
           sel_increseMemAddress : in STD_LOGIC;
@@ -63,6 +65,8 @@ signal rCounter_load :  STD_LOGIC;
 signal rMemAddress_load :  STD_LOGIC;
 signal rAddOn_load1           : STD_LOGIC;
 signal rAddOn_load                :  STD_LOGIC;
+signal rP1_load                     : STD_LOGIC;
+signal rP2_load                     : STD_LOGIC;
 signal sel_increaseAddress : STD_LOGIC;
 signal sel_decreaseCounter : STD_LOGIC;
 signal sel_increseMemAddress : STD_LOGIC;
@@ -72,7 +76,7 @@ signal sel_saveLastBit : STD_LOGIC;
 signal start_convolution : STD_LOGIC;
 signal o_endWord : STD_LOGIC;
 signal o_endFile : STD_LOGIC;
-type S is (S0, Reset, InitLoad, WaitMem1, Load, WaitMem2, InitConvolution, Convolute, SaveP1, SaveP2, CloseMem);
+type S is (S0, Reset, InitLoad, WaitMem1, Load, WaitMem2, InitConvolution, Convolute, WaitP, SaveP1, SaveP2, CloseMem);
 signal cur_state, next_state : S;
 
 begin
@@ -87,6 +91,8 @@ begin
           rMemAddress_load      => rMemAddress_load ,
           rAddOn_load1              => rAddOn_load1 ,
           rAddOn_load              =>   rAddOn_load,
+          rP1_load                   =>   rP1_load,
+          rP2_load                   =>   rP2_load,
           sel_increaseAddress   => sel_increaseAddress ,
           sel_decreaseCounter   => sel_decreaseCounter ,
           sel_increseMemAddress => sel_increseMemAddress ,
@@ -139,10 +145,12 @@ begin
           next_state <= Convolute;
         when Convolute => --stato per eseguire la convoluzione di una data parola
          if (o_endWord = '1') then
-                next_state <= SaveP1;
+                next_state <= WaitP;
             else 
                 next_state <= Convolute;
             end if; 
+         when WaitP =>
+            next_state <= SaveP1; 
          when SaveP1 => --stato per salvare in memoria il risultato dello Convolute 
             next_state <= SaveP2 ;
          when SaveP2 =>  --stato per salvare in memoria il risultato dello Convolute 
@@ -165,6 +173,8 @@ begin
       rMemAddress_load <= '0';
       rAddOn_load1 <= '0';
       rAddOn_load <= '0';
+      rP1_load  <= '0';
+      rP2_load  <= '0';
       sel_increaseAddress <= '0';
       sel_decreaseCounter <= '0';
       sel_increseMemAddress <= '0';
@@ -228,6 +238,9 @@ begin
            sel_saveLastBit <= '1';
            rAddOn_load1 <= '1';
            start_convolution <= '1';
+        when WaitP =>
+           rP1_load  <= '1';
+           rP2_load  <= '1';
         when SaveP1 => 
            o_en <= '1';
            o_we <= '1'; 
@@ -238,6 +251,8 @@ begin
            sel_AddressOutput  <= '1';
            sel_DataOutput <= '0';
            start_convolution <= '0';
+           rP1_load  <= '0';
+           rP2_load  <= '0';
          when SaveP2 =>
            o_en <= '1';
            o_we <= '1'; 
@@ -272,6 +287,8 @@ entity datapath is
           rMemAddress_load      : in STD_LOGIC;
           rAddOn_load1           : in STD_LOGIC;
           rAddOn_load               : in STD_LOGIC;
+          rP1_load                       : in STD_LOGIC;
+          rP2_load                       : in STD_LOGIC;
           sel_increaseAddress : in STD_LOGIC;
           sel_decreaseCounter : in STD_LOGIC;
           sel_increseMemAddress : in STD_LOGIC;
@@ -296,6 +313,8 @@ architecture Behavioral of datapath is
   signal MaxAddress_sum : STD_LOGIC_VECTOR(15 downto 0);
   signal address_sum : STD_LOGIC_VECTOR(15 downto 0);
   signal endFile_sub : STD_LOGIC_VECTOR(15 downto 0);
+  signal P1k  : STD_LOGIC_VECTOR(7 downto 0);
+  signal P2k : STD_LOGIC_VECTOR(7 downto 0);
   signal P1  : STD_LOGIC_VECTOR(7 downto 0);
   signal P2 : STD_LOGIC_VECTOR(7 downto 0);
   signal o_rMemAddress : STD_LOGIC_VECTOR(15 downto 0);
@@ -420,35 +439,14 @@ begin
   process(i_clk, i_rst)
   begin
     if (i_rst = '1' or o_rCounter = 8) then
-      P1 <= (others => '0');
-      P2 <= (others => '0');
+      P1k <= (others => '0');
+      P2k <= (others => '0');
     elsif i_clk'event and i_clk = '1' then
         if (start_convolution = '1') then
             case (o_rCounter) is
-                when 7 =>
-                    P1 (o_rCounter ) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 2));
-                    P1 (o_rCounter -1) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 1) xor ConvInput(o_rCounter + 2));
-                when 6 =>
-                    P1 (o_rCounter - 1) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 2));
-                    P1 (o_rCounter - 2) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 1) xor ConvInput(o_rCounter + 2));
-                when 5 =>
-                    P1 (o_rCounter -2 ) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 2));
-                    P1 (o_rCounter -3 ) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 1) xor ConvInput(o_rCounter + 2));
-                when 4 =>
-                    P1 (o_rCounter - 3) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 2));
-                    P1 (o_rCounter - 4) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 1) xor ConvInput(o_rCounter + 2));
-                when 3 =>
-                    P2 (o_rCounter + 4 ) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 2));
-                    P2 (o_rCounter + 3 ) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 1) xor ConvInput(o_rCounter + 2));
-                when 2 =>
-                    P2 (o_rCounter + 3) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 2));
-                    P2 (o_rCounter + 2) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 1) xor ConvInput(o_rCounter + 2));
-                when 1 =>
-                    P2 (o_rCounter + 2 ) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 2));
-                    P2 (o_rCounter + 1 ) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 1) xor ConvInput(o_rCounter + 2));
-                when 0 =>
-                    P2 (o_rCounter + 1) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 2));
-                    P2 (o_rCounter + 0) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 1) xor ConvInput(o_rCounter + 2));
+                when 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 =>
+                    P1k (o_rCounter ) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 2));
+                    P2k (o_rCounter ) <= (ConvInput(o_rCounter) xor ConvInput(o_rCounter + 1) xor ConvInput(o_rCounter + 2));
                 when others =>
             end case;
          end if;
@@ -481,6 +479,44 @@ begin
     o_rMemAddress when '1',
     (others => 'X') when others;
     
+    --configurazione del registro P1
+  process(i_clk, i_rst)
+  begin
+    if (i_rst = '1') then
+      P1 <= (others => '0');
+    elsif i_clk'event and i_clk = '1' then
+      if(rP1_load = '1') then
+            P1(7) <= P1k (7);
+            P1(6) <= P2k(7); 
+            P1(5) <= P1k (6);
+            P1(4) <= P2k(6); 
+            P1(3) <= P1k (5);
+            P1(2) <= P2k (5);
+            P1(1) <= P1k (4);
+            P1(0) <= P2k (4);
+      end if;
+    end if;
+  end process;
+    
+        --configurazione del registro P2
+  process(i_clk, i_rst)
+  begin
+    if (i_rst = '1') then
+      P2 <= (others => '0');
+    elsif i_clk'event and i_clk = '1' then
+      if(rP2_load = '1') then
+                P2(7) <= P1k (3);
+                P2(6) <= P2k(3); 
+                P2(5) <= P1k (2);
+                P2(4) <= P2k(2); 
+                P2(3) <= P1k (1);
+                P2(2) <= P2k (1);
+                P2(1) <= P1k (0);
+                P2(0) <= P2k (0);
+      end if;
+    end if;
+  end process;
+
      --configurazione mux per output address 
     with sel_DataOutput select o_data <=
     P1 when '0',

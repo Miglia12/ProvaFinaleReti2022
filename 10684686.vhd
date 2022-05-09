@@ -76,7 +76,7 @@ signal sel_saveLastBit : STD_LOGIC;
 signal start_convolution : STD_LOGIC;
 signal o_endWord : STD_LOGIC;
 signal o_endFile : STD_LOGIC;
-type S is (S0, Reset, InitLoad, WaitMem1, Load, WaitMem2, InitConvolution, Convolute, WaitP, SaveP1, SaveP2, CloseMem);
+type S is (S0, Reset, InitLoad, WaitMem1, Load, WaitMem2, InitConvolution, Convolute, WaitP, SaveP1, SaveP2, CloseMem, Done);
 signal cur_state, next_state : S;
 
 begin
@@ -126,6 +126,8 @@ begin
         when S0 => --stato di IDLE, se i_start = 1 passa allo stato di Reset
           if i_start = '1' then
             next_state <= Reset;
+          else 
+            next_state <= S0;
           end if;
         when Reset => --stato di Reset, passa immediatamente allo stato di InitLoad
           next_state <= InitLoad;
@@ -156,6 +158,8 @@ begin
          when SaveP2 =>  --stato per salvare in memoria il risultato dello Convolute 
             next_state <= Load ;
          when CloseMem => --stato finale, setta a zero l'accesso alla memoria
+            next_state <= Done;
+         when Done =>
             next_state <= S0;
       end case;
     end process;
@@ -259,10 +263,12 @@ begin
            sel_increseMemAddress <= '1';
            rMemAddress_load <= '1';
            sel_AddressOutput  <= '1';
-           sel_DataOutput <= '1';
+           sel_DataOutput <= '1';       
          when CloseMem => 
+           o_done <= '1';
            o_en <= '0';
            o_we <= '0'; 
+         when Done =>
            o_done <= '1';
       end case;
     end process;

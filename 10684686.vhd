@@ -76,7 +76,7 @@ signal sel_saveLastBit : STD_LOGIC;
 signal start_convolution : STD_LOGIC;
 signal o_endWord : STD_LOGIC;
 signal o_endFile : STD_LOGIC;
-type S is (S0, Reset, InitLoad, WaitMem1, Load, WaitMem2, InitConvolution, Convolute, WaitP, SaveP1, SaveP2, CloseMem, Done);
+type S is (S0, InitLoad, WaitMem1, Load, WaitMem2, InitConvolution, Convolute, ReArrange, SaveP1, SaveP2, CloseMem, Done);
 signal cur_state, next_state : S;
 
 begin
@@ -125,12 +125,10 @@ begin
       case cur_state is --condizioni di cambiamento tra stati
         when S0 => --stato di IDLE, se i_start = 1 passa allo stato di Reset
           if i_start = '1' then
-            next_state <= Reset;
+            next_state <= InitLoad;
           else 
             next_state <= S0;
           end if;
-        when Reset => --stato di Reset, passa immediatamente allo stato di InitLoad
-          next_state <= InitLoad;
         when InitLoad => --stato di InitLoad, se il file non e terminato passa allo stato di Load, altrimenti torna a S0
             next_state <= WaitMem1;
         when WaitMem1 => --stato di Wait, permette di caricare il valore corretto dalla memoria
@@ -147,11 +145,11 @@ begin
           next_state <= Convolute;
         when Convolute => --stato per eseguire la convoluzione di una data parola
          if (o_endWord = '1') then
-                next_state <= WaitP;
+                next_state <= ReArrange;
             else 
                 next_state <= Convolute;
             end if; 
-         when WaitP =>
+         when ReArrange =>
             next_state <= SaveP1; 
          when SaveP1 => --stato per salvare in memoria il risultato dello Convolute 
             next_state <= SaveP2 ;
@@ -192,8 +190,7 @@ begin
       --gestione del comportamento per ogni stato
       case cur_state is
         when s0 =>  --stato di IDLE
-        o_done <= '0';
-        when Reset =>  --stato di reset, azzera i contatori e gli indirizzi
+          o_done <= '0';
           o_en <= '0';
           o_we <= '0';
           sel_increaseAddress <= '0';
@@ -236,16 +233,16 @@ begin
           rAddress_load <= '0';
           sel_decreaseCounter <= '1';
           rCounter_load <= '1';
-        when Convolute => 
+        when Convolute => --esegue la convoluzione
            sel_decreaseCounter <= '1';
            rCounter_load <= '1';
            sel_saveLastBit <= '1';
            rAddOn_load1 <= '1';
            start_convolution <= '1';
-        when WaitP =>
+        when ReArrange => --prepara gli stream finali
            rP1_load  <= '1';
            rP2_load  <= '1';
-        when SaveP1 => 
+        when SaveP1 => --salva la prima parte dello stream elaborato
            o_en <= '1';
            o_we <= '1'; 
            sel_decreaseCounter <= '0';
@@ -257,7 +254,7 @@ begin
            start_convolution <= '0';
            rP1_load  <= '0';
            rP2_load  <= '0';
-         when SaveP2 =>
+         when SaveP2 => --salva la seconda parte dello stream elaborato
            o_en <= '1';
            o_we <= '1'; 
            sel_increseMemAddress <= '1';
